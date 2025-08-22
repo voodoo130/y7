@@ -1,0 +1,44 @@
+name: Build Padavan for Newifi Y1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential git gperf gcc-multilib \
+            g++-multilib libncurses5-dev zlib1g-dev gawk flex gettext \
+            unzip python3 python3-pip
+
+      - name: Clone Padavan source
+        run: |
+          git clone --depth=1 https://github.com/chongshengB/rt-n56u.git /opt/rt-n56u
+          cd /opt/rt-n56u/toolchain-mipsel
+          sh dl_toolchain.sh
+          sh build_toolchain.sh
+
+      - name: Copy custom config for Newifi Y1
+        run: |
+          cp $GITHUB_WORKSPACE/configs/templates/NEWIFI-Y1.config /opt/rt-n56u/trunk/configs/templates/
+
+      - name: Build firmware
+        run: |
+          cd /opt/rt-n56u/trunk
+          fakeroot ./build_firmware_modify NEWIFI-Y1
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v3
+        with:
+          name: newifi-y1-firmware
+          path: /opt/rt-n56u/trunk/images/*.trx
